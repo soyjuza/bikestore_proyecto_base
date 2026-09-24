@@ -1,0 +1,402 @@
+* { box-sizing: border-box; }
+
+:root {
+    font-family: Arial, sans-serif;
+    color: #1f2937;
+    background: #f3f4f6;
+
+    /* Teal: action de editar/actualizar */
+    --teal: #0d9488;
+    --teal-dark: #0f766e;
+
+    /* Azul: accion de crear */
+    --blue: #2563eb;
+    --blue-dark: #1d4ed8;
+
+    /* Gama de grises: acciones neutras (cancelar, elimiar) y texto */
+
+    --gray-900: #111827;
+    --gray-700: #374151;
+    --gray-500: #6b7280;
+    --gray-300: #d1d5db;
+    --gray-100: #f3f4f6;
+
+    --white: #ffffff;
+
+    /* Sombras y radios reutilizables */
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+    --radius: 8px;
+    --radius-sm: 6px;
+}
+
+body { margin: 0; background: var(--gray-100); }
+
+button, input, select { font: inherit; }
+
+button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 600;
+    background: var(--blue);
+    color: var(--white);
+    transition: background-color .15s ease;
+}
+
+button:hover { background: var(--blue-dark); }
+
+button:focus-visible {
+    outline: 2px solid var(--teal);
+}
+
+/* Editar / Actualizar = teal */
+button.edit {background: var(--teal);}
+button.edit:hover { background: var(--teal-dark); }
+
+/* Cacelar / Eliminar = gris */
+button.secondary { background: var(--gray-500); }
+button.secondary:hover { background: var(--gray-700); }
+
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 24px;
+    background: var(--white);
+    box-shadow: var(--shadow-sm);
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.nav-right button.secondary {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+}
+
+.container {
+    width: min(1100px, calc(100% - 32px));
+    margin: 30px auto;
+}
+
+.page-header {
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gray-300);
+}
+.page-header p {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+.card {
+    background: #ffffff;
+    padding: 22px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 22px;
+}
+
+.form-grid {
+    display: grid;
+    gap: 12px;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-sm);
+    background: var(--white);
+    color: var(--gray-900);
+}
+
+input[type="file"] { border: 0; padding: 0; }
+
+input:focus, select:focus {
+    outline: 2px solid var(--teal);
+    outline-offset: 1px;
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    font-weight: 600;
+    padding: 12px;
+}
+
+th, td {
+    padding: 11px;
+    border-bottom: 1px solid #e1fafc;
+    text-align: left;
+}
+
+tbody tr:nth-child(even) { background: #f8fafc; }
+tbody tr:hover {background: #f0fdfa;}
+
+.auth-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+}
+
+.auth-card {
+    width: min(420px, 100%);
+    display: grid;
+    gap: 12px;
+    padding: 32px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+}
+
+.auth-card h1,
+.auth-card h2,
+.auth-card p {
+    text-align: center;
+}
+
+.auth-card h1{
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--blue);
+}
+
+.auth-card h2{
+    font-size: 1rem;
+    color: var(--gray-500);
+    font-weight: 400;
+    margin: 0;
+}
+
+.auth-card button[type="submit"] {
+    justify-content: center;
+}
+
+.auth-logo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #ccfbf1;
+    color: var(--teal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+}
+
+.field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    color: var(--gray-500);
+}
+
+.field > svg {
+    position: absolute;
+    left: 12px;
+    pointer-events: none;
+}
+
+.field input {
+    flex: 1;
+    padding-left: 36px;
+}
+
+.field input.has-toggle {
+    padding-right: 40px;
+}
+
+.toggle-visibility {
+    position: absolute;
+    right: 10px;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    color: var(--gray-500);
+    box-shadow: none;
+}
+
+.toggle-visibility:hover {
+    background: transparent;
+    color: var(--gray-500);
+}
+
+.footer-note {
+    text-align: center;
+    color: var(--gray-500);
+    font-size: 0.75rem;
+}
+
+.error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #f1f5f9;
+    color: var(--gray-700);
+    border-left: 3px solid var(--teal);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+}
+
+small { color: var(--gray-500); }
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 48px 24px;
+    color: var(--gray-500);
+    text-align: center;
+}
+
+/* Cards de equipos (imagen + nombre/marca/modelo) */
+.equipos-section { margin-top: 8px; }
+.equipos-section h2 { margin-bottom: 12px; }
+
+.equipos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.equipo-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.equipo-card-image {
+    height: 150px;
+    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-500);
+}
+
+.equipo-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.equipo-card-body {
+    padding: 14px 16px;
+    flex: 1;
+}
+
+.equipo-card-body h3 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    color: var(--gray-900);
+}
+
+.equipo-card-meta {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--gray-500);
+}
+
+.equipo-card-actions {
+    padding: 0 16px 16px;
+}
+
+/* Campo de imagen en el formulario */
+.image-upload-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--gray-700);
+}
+
+.image-upload-field span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+}
+
+.image-upload-field input[type="file"] {
+    padding: 8px;
+}
+
+.image-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--gray-300);
+}
+
+.image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+    .container { width: min(900px, calc(100% - 48px)); }
+}
+
+@media (max-width: 640px) {
+    .navbar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    text-align: center;
+    }
+
+    .nav-right { flex-direction: column; gap: 10px; }
+
+    .brand { font-size: 1.2rem; }
+
+    .container { margin: 16px auto; }
+
+    .actions { flex-wrap: wrap; }
+
+    .form-grid .actions {
+    flex-direction: column;
+    }
+
+    .form-grid .actions button {
+    width: 100%;
+    }
+
+    table { display: block; overflow-x: auto; }
+}
