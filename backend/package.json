@@ -1,0 +1,24 @@
+{
+    "name": "bikestore-backend",
+    "version": "1.0.0",
+    "description": "API de BikeStore: catálogo, carrito, pedidos con pago simulado, usuarios y reportes",
+    "main": "server.js",
+    "scripts": {
+        "dev": "nodemon server.js",
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "cors": "^2.8.5",
+        "dotenv": "^17.2.1",
+        "exceljs": "^4.4.0",
+        "express": "^5.1.0",
+        "jsonwebtoken": "^9.0.2",
+        "multer": "^2.0.2",
+        "mysql2": "^3.14.3",
+        "pdfkit": "^0.17.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.10"
+    }
+}
