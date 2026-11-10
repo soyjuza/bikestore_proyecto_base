@@ -12,4 +12,7 @@ async function start() {
   });
 }
 
-start();
+start().catch((error) => {
+  console.error("No se pudo iniciar el servidor:", error.message);
+  process.exit(1);
+});

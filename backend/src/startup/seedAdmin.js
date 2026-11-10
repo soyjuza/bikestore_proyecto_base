@@ -22,7 +22,7 @@ async function seedAdmin() {
     return;
   }
 
-  const hash = await bcrypt.hash(password, 10);
+  const hash = await bcrypt.hash(password, env.bcryptRounds);
 
   await pool.execute(
     "INSERT INTO usuarios (nombre, email, password, rol) VALUES (?,?,?,?)",
