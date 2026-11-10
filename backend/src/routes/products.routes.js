@@ -6,7 +6,8 @@ const { uploadProductoImagen } = require('../middlewares/upload.middleware');
 
 const router = express.Router();
 
-// públicas: el catálogo se consulta sin cuenta (RF-01..05). ?todos=1 incluye inactivos solo para admin.
+// públicas: el catálogo se consulta sin cuenta (RF-01..04). ?todos=1 incluye inactivos solo para admin.
+// filtros opcionales: ?categoria=montana  ?orden=asc|desc  ?q=texto
 router.get('/', optionalAuthenticate, controller.list);
 router.get('/:id', controller.getById);
 
