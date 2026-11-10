@@ -1,5 +1,6 @@
 import { USE_MOCK } from '../config/env';
 import { api, json } from './api';
+import { getUser, saveSession } from '../utils/storage';
 import * as mock from './mock/db';
 
 /* ---- cuenta propia ---- */
@@ -10,7 +11,10 @@ export async function updateMe(data) {
 
 export async function changePassword(data) {
     if (USE_MOCK) return mock.changePassword(data);
-    return api('/users/me/password', { method: 'PUT', body: json(data) });
+    const result = await api('/users/me/password', { method: 'PUT', body: json(data) });
+    // al cambiar la contraseña el token anterior deja de servir; el backend entrega uno nuevo
+    if (result.token) saveSession(result.token, getUser());
+    return result;
 }
 
 /* ---- administración (RF-27 a RF-31) ---- */
