@@ -11,7 +11,7 @@ async function get(req, res, next) {
 
 async function replace(req, res, next) {
     try {
-        const data = await cartService.replaceCart(req.user.id_usuario, req.body.items || []);
+        const data = await cartService.replaceCart(req.user.id_usuario, req.body.items ?? []);
         res.json({ ok: true, data });
     } catch (error) {
         next(error);
