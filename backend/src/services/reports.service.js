@@ -13,6 +13,9 @@ const notImplemented = require("../utils/notImplemented");
    }
    Si categoria !== 'todas', solo cuentan las líneas de esa categoría.
 
+   Ojo: los carritos también viven en pedidos; filtrar SIEMPRE estado <> 'Carrito' para no contarlos como ventas.
+   La categoría de cada línea sale de JOIN productos (pedido_detalle ya no la guarda).
+
    TODO getDashboard({ desde, hasta, categoria }): consultas con SUM/COUNT/GROUP BY sobre pedidos y pedido_detalle.
    TODO buildExcel(filters): usar exceljs -> workbook con hojas «Resumen», «Más vendidos» y «Pedidos»; devolver
         await workbook.xlsx.writeBuffer().

@@ -8,8 +8,8 @@ COLLATE utf8mb4_unicode_ci;
 USE bikestore;
 
 DROP TABLE IF EXISTS pedido_detalle;
+DROP TABLE IF EXISTS carrito_items;                       -- ya no existe; se deja por si quedó de una versión anterior
 DROP TABLE IF EXISTS pedidos;
-DROP TABLE IF EXISTS carrito_items;
 DROP TABLE IF EXISTS recuperaciones;
 DROP TABLE IF EXISTS productos;
 DROP TABLE IF EXISTS categorias;
@@ -58,42 +58,41 @@ CREATE TABLE productos (
     CHECK (stock >= 0)
 );
 
--- RF-08: el carrito queda guardado en la cuenta
-CREATE TABLE carrito_items (
-    id_usuario INT NOT NULL,
-    id_producto INT NOT NULL,
-    cantidad INT NOT NULL,
-    PRIMARY KEY (id_usuario, id_producto),
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_producto) REFERENCES productos(id_producto),
-    CHECK (cantidad > 0)
-);
-
--- RF-09..12
+-- RF-08..12: un pedido nace como carrito y se vuelve compra al pagar.
+-- Mientras estado = 'Carrito' es la lista que el cliente va armando (queda guardada en su cuenta, RF-08):
+-- numero, direccion, ciudad, telefono, ultimos4 y total van en NULL porque todavía no se ha pagado.
+-- Al pagar (RF-09..12) se llenan esos campos, fecha pasa a ser la del pago y estado cambia a 'Pagado'.
+-- Cada cliente tiene como máximo UN pedido en estado 'Carrito' (lo controla el backend).
+-- Así Usuario -> Pedido -> Producto es un solo camino y el modelo E-R no tiene circuito cerrado.
 CREATE TABLE pedidos (
     id_pedido INT AUTO_INCREMENT PRIMARY KEY,
-    numero VARCHAR(20) UNIQUE,                               -- BS-2026-00031
+    numero VARCHAR(20) NULL UNIQUE,                          -- BS-2026-00031; se asigna al pagar
     id_usuario INT NOT NULL,
-    fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    estado ENUM('Pagado','En preparación','Enviado','Entregado') NOT NULL DEFAULT 'Pagado',
-    direccion VARCHAR(200) NOT NULL,
-    ciudad VARCHAR(100) NOT NULL,
-    telefono VARCHAR(30) NOT NULL,
-    ultimos4 CHAR(4) NOT NULL,                               -- nunca se guarda el número completo
-    total DECIMAL(12,0) NOT NULL,
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+    fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,       -- al pagar se actualiza a la fecha del pago
+    estado ENUM('Carrito','Pagado','En preparación','Enviado','Entregado') NOT NULL DEFAULT 'Carrito',
+    direccion VARCHAR(200) NULL,
+    ciudad VARCHAR(100) NULL,
+    telefono VARCHAR(30) NULL,
+    ultimos4 CHAR(4) NULL,                                   -- nunca se guarda el número completo
+    total DECIMAL(12,0) NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    -- si ya se pagó, los datos de la compra son obligatorios
+    CHECK (estado = 'Carrito' OR (numero IS NOT NULL AND direccion IS NOT NULL AND ciudad IS NOT NULL
+           AND telefono IS NOT NULL AND ultimos4 IS NOT NULL AND total IS NOT NULL))
 );
 
+-- Productos de cada pedido (o del carrito, si el pedido está en estado 'Carrito').
+-- Un producto aparece una sola vez por pedido: si lo agregan otra vez, sube la cantidad.
+-- nombre y categoria ya no se copian: salen de productos.
 CREATE TABLE pedido_detalle (
-    id_detalle INT AUTO_INCREMENT PRIMARY KEY,
     id_pedido INT NOT NULL,
     id_producto INT NOT NULL,
-    nombre VARCHAR(120) NOT NULL,                            -- copia del momento de la compra
-    categoria VARCHAR(20) NOT NULL,
-    precio DECIMAL(12,0) NOT NULL,
     cantidad INT NOT NULL,
+    precio DECIMAL(12,0) NULL,                               -- precio del momento de la compra; NULL mientras es carrito
+    PRIMARY KEY (id_pedido, id_producto),
     FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
-    FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto),
+    CHECK (cantidad > 0)
 );
 
 INSERT INTO categorias (id_categoria, nombre, descripcion) VALUES
