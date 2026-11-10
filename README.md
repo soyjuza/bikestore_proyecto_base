@@ -38,19 +38,23 @@ El enlace «Restablecer datos de demostración» del pie de página vuelve a los
 Cada servicio del frontend (`frontend/src/services/*.service.js`) decide si usa el mock o llama a la API,
 así que se puede pasar a la API real módulo por módulo.
 
+Con el backend real las cuentas de demostración de arriba no existen: se entra con el administrador del `.env`
+y los clientes se crean desde «Crear cuenta». El enlace para recuperar la contraseña sale en la consola
+del backend si no se configuró un correo (`SMTP_HOST`).
+
 ## Estado del backend
 
 | Módulo     | Rutas | Controlador | Servicio |
 |------------|-------|-------------|----------|
-| auth       | ✔     | ✔           | registro e inicio de sesión ✔ · recuperar contraseña: TODO |
-| products   | ✔     | ✔           | ✔ (adaptado del CRUD de equipos) |
-| cart       | ✔     | ✔           | TODO |
-| orders     | ✔     | ✔           | TODO |
-| users      | ✔     | ✔           | TODO |
-| reports    | ✔     | ✔           | TODO |
+| auth       | ✔     | ✔           | ✔ registro, inicio de sesión y recuperar contraseña |
+| products   | ✔     | ✔           | ✔ catálogo con filtro y orden, productos del administrador |
+| cart       | ✔     | ✔           | ✔ |
+| orders     | ✔     | ✔           | ✔ pago simulado en una transacción |
+| users      | ✔     | ✔           | ✔ |
+| reports    | ✔     | ✔           | ✔ tablero, Excel y PDF |
 
-Los servicios pendientes responden `501` y tienen en comentarios los pasos a seguir y el formato de datos
-que espera el frontend (el mismo que devuelve el mock).
+El backend tiene pruebas automáticas (`cd backend && npm test`). Cómo prepararlas está en `backend/README.md`
+y las de seguridad están explicadas en `backend/docs/pruebas-seguridad.md`.
 
 ## Rutas de la API
 
@@ -59,6 +63,7 @@ Públicas:
 - `POST /api/auth/register` · `POST /api/auth/login`
 - `POST /api/auth/recover` · `GET /api/auth/reset/:token` · `POST /api/auth/reset`
 - `GET  /api/products` · `GET /api/products/:id`
+- `GET  /api/products?categoria=montana&orden=asc` (filtro por categoría y orden por precio, `asc` o `desc`)
 
 Con sesión:
 - `GET  /api/cart` · `PUT /api/cart`
@@ -67,6 +72,7 @@ Con sesión:
 
 Solo `admin`:
 - `GET /api/products?todos=1` · `POST /api/products` · `PUT /api/products/:id` · `PATCH /api/products/:id/estado`
+- `GET /api/products?todos=1&q=casco` busca por nombre · `GET /api/users?q=laura` busca por nombre o correo
 - `GET /api/users` · `PATCH /api/users/:id/rol` · `PATCH /api/users/:id/estado`
 - `GET /api/reports/dashboard` · `GET /api/reports/export/excel` · `GET /api/reports/export/pdf`
 
@@ -87,6 +93,6 @@ Solo `admin`:
 ## Flujo de autenticación
 
 Login → `AuthContext` guarda token y usuario en `localStorage` → `services/api.js` agrega `Authorization: Bearer` →
-`auth.middleware.js` verifica el JWT → `role.middleware.js` verifica el rol.
+`auth.middleware.js` verifica el JWT y que la cuenta siga activa → `role.middleware.js` verifica el rol.
 
 Ocultar un botón o una ruta en React no es seguridad: el backend vuelve a verificar el rol en cada petición.
