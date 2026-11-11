@@ -6,7 +6,7 @@ import { Breadcrumbs, EmptyState, ProductImage, Stepper } from '../components/ui
 import { TIPOS, categoriaById } from '../data/seed';
 import { money } from '../utils/format';
 
-// RF-05: detalle del producto con existencias, cantidad y productos relacionados
+// RF-05: detalle del producto con galería, zoom, existencias, cantidad y productos relacionados
 export default function ProductDetailPage() {
     const { id } = useParams();
     const { products, productsLoaded, qtyOf, add } = useCart();
@@ -52,6 +52,17 @@ export default function ProductDetailPage() {
         setQty(1);
     }
 
+    // Zoom: le dice al CSS en qué punto de la foto está el cursor para ampliar hacia ahí.
+    function moveZoom(e) {
+        const box = e.currentTarget;
+        const img = box.querySelector('img');
+        if (!img || !img.offsetWidth) return;
+        const r = box.getBoundingClientRect();
+        const pct = (v) => `${Math.min(100, Math.max(0, v * 100)).toFixed(1)}%`;
+        box.style.setProperty('--zx', pct((e.clientX - r.left - img.offsetLeft) / img.offsetWidth));
+        box.style.setProperty('--zy', pct((e.clientY - r.top - img.offsetTop) / img.offsetHeight));
+    }
+
     let stockLine;
     if (out) stockLine = <p className="stockline out"><i />Agotado. Este producto no tiene unidades disponibles por ahora.</p>;
     else if (p.stock <= 3) stockLine = <p className="stockline low"><i />Quedan {p.stock} unidades</p>;
@@ -64,31 +75,31 @@ export default function ProductDetailPage() {
             </section>
 
             <section className="wrap pgrid">
-                <div className="gal">
-                    <div className={`media${out ? ' out' : ''}`}>
-                        <ProductImage product={p} photo={gallery === 'foto'} lazy={false} />
-                        {out && <span className="flag">Agotado</span>}
-                    </div>
+                <div className={`gal${p.foto ? '' : ' solo'}`}>
                     {p.foto && (
                         <div className="thumbs" role="group" aria-label="Vistas del producto">
-                            <button className="tbtn" aria-pressed={gallery === 'cut'} aria-label="Ver el producto" onClick={() => setView('cut')}>
+                            <button className="tbtn" aria-pressed={gallery === 'cut'} aria-label="Ver el producto" onClick={() => setView('cut')} onMouseEnter={() => setView('cut')}>
                                 <ProductImage product={p} decorative />
                             </button>
-                            <button className="tbtn" aria-pressed={gallery === 'foto'} aria-label="Ver la foto original" onClick={() => setView('foto')}>
+                            <button className="tbtn" aria-pressed={gallery === 'foto'} aria-label="Ver la foto original" onClick={() => setView('foto')} onMouseEnter={() => setView('foto')}>
                                 <ProductImage product={p} photo decorative />
                             </button>
                         </div>
                     )}
+                    <div className={`media zoom${out ? ' out' : ''}`} onMouseMove={moveZoom}>
+                        <ProductImage product={p} photo={gallery === 'foto'} lazy={false} />
+                        {out && <span className="flag">Agotado</span>}
+                    </div>
+                    <p className="zhint">Pasa el cursor sobre la foto para ampliarla.</p>
                 </div>
 
-                <div className="pinfo">
+                <div className="buybox">
                     <div>
                         <p className="ptype">{TIPOS[p.categoria] || c.nombre}</p>
-                        <h1 className="h1">{p.nombre}</h1>
+                        <h1 className="ptitle">{p.nombre}</h1>
                     </div>
                     <p className="pricebig">{money(p.precio)}</p>
                     {stockLine}
-                    <p className="pdesc">{p.descripcion}</p>
 
                     {!out && (
                         <div>
@@ -101,7 +112,7 @@ export default function ProductDetailPage() {
                                     onDec={() => setQty(Math.max(1, q - 1))}
                                     onInc={() => setQty(q + 1)}
                                 />
-                                <button className="btn btn-primary" disabled={room <= 0} onClick={addToCart} style={{ flex: '1 1 220px' }}>
+                                <button className="btn btn-primary btn-block" disabled={room <= 0} onClick={addToCart}>
                                     Agregar al carrito
                                 </button>
                             </div>
@@ -113,12 +124,26 @@ export default function ProductDetailPage() {
                         </div>
                     )}
 
-                    <div className="specs">
-                        <div><span>Categoría</span><b>{c.nombre}</b></div>
-                        <div><span>Referencia</span><b>P{String(p.id_producto).padStart(2, '0')}</b></div>
-                        <div><span>Pago</span><b>Con tu cuenta, al finalizar</b></div>
+                    <p className="fine sep">Puedes agregar al carrito sin cuenta. Para pagar te pediremos iniciar sesión.</p>
+                </div>
+            </section>
+
+            <section className="wrap">
+                <div className="pdetails">
+                    <div>
+                        <h2>Características</h2>
+                        <dl className="specs">
+                            <div><dt>Categoría</dt><dd>{c.nombre}</dd></div>
+                            <div><dt>Tipo</dt><dd>{TIPOS[p.categoria] || c.nombre}</dd></div>
+                            <div><dt>Referencia</dt><dd>P{String(p.id_producto).padStart(2, '0')}</dd></div>
+                            <div><dt>Disponibilidad</dt><dd>{out ? 'Agotado' : `${p.stock} ${p.stock === 1 ? 'unidad' : 'unidades'}`}</dd></div>
+                            <div><dt>Pago</dt><dd>Con tu cuenta, al finalizar</dd></div>
+                        </dl>
                     </div>
-                    <p className="fine">Puedes agregar al carrito sin cuenta. Para pagar te pediremos iniciar sesión.</p>
+                    <div>
+                        <h2>Descripción</h2>
+                        <p className="pdesc">{p.descripcion}</p>
+                    </div>
                 </div>
             </section>
 

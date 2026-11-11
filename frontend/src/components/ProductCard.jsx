@@ -37,22 +37,27 @@ export default function ProductCard({ product, index = 0, feature = false }) {
                     <ProductImage product={product} />
                 </Link>
                 {out && <span className="flag">Agotado</span>}
-                <button
-                    ref={btnRef}
-                    className="add"
-                    disabled={out}
-                    onClick={addToCart}
-                    aria-label={`Agregar ${product.nombre} al carrito`}
-                >
-                    <IconAdd />
-                </button>
             </div>
             <div className="cbody">
-                <Link className="cname" to={to}>{product.nombre}</Link>
-                <span className="price">{money(product.precio)}</span>
                 <p className="cmeta">{categoriaById(product.categoria).nombre}</p>
+                <Link className="cname" to={to}>{product.nombre}</Link>
                 {feature && <p className="cdesc">{product.descripcion}</p>}
-                <Availability stock={product.stock} />
+                <div className="cfoot">
+                    <div className="cbuy">
+                        <span className="price">{money(product.precio)}</span>
+                        <Availability stock={product.stock} />
+                    </div>
+                    <button
+                        ref={btnRef}
+                        className="add"
+                        disabled={out}
+                        onClick={addToCart}
+                        aria-label={`Agregar ${product.nombre} al carrito`}
+                        title="Agregar al carrito"
+                    >
+                        <IconAdd />
+                    </button>
+                </div>
             </div>
         </article>
     );
