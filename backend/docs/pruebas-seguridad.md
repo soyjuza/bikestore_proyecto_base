@@ -6,7 +6,10 @@ Las pruebas están en `tests/seguridad.test.js` y `tests/limites.test.js`. Se co
 junto con las demás. Cada una hace una petición como la haría alguien que quiere saltarse una regla
 y revisa que la API responda lo que debe y que en la base de datos no haya cambiado nada.
 
-Resultado: 47 pruebas de seguridad, 47 pasan. En total con las funcionales son 129.
+Resultado: 47 pruebas de seguridad, 47 pasan. En total con las funcionales son 133.
+
+Actualizado el 10/11/2026 (noche): contraseña segura, correo de recuperación en HTML, aviso de cambio
+de contraseña y límite de enlaces por correo. Esas pruebas están en `tests/cuenta.test.js` y `tests/usuarios.test.js`.
 
 ## Qué requisitos cubren
 
@@ -71,6 +74,11 @@ Resultado: 47 pruebas de seguridad, 47 pasan. En total con las funcionales son 1
 | Buscar el hash o la palabra `password` en las respuestas | No aparecen | Sí |
 | Comparar el token del correo con lo guardado en `recuperaciones` | Son distintos (se guarda el hash) | Sí |
 | Token de recuperación inventado o con inyección | 410 | Sí |
+| Registrarse o cambiar la contraseña sin mayúscula, minúscula, número o carácter especial | 400 | Sí |
+| Cambiar la contraseña por una igual a la actual | 400 | Sí |
+| El enlace del correo lleva el token después de `#`, no de `?` | Nunca llega a los registros de un servidor | Sí |
+| Nombre con HTML dentro del correo de recuperación | Se escribe escapado (`&lt;img…`), no se interpreta | Sí |
+| Después de cambiar la contraseña | Llega un correo de aviso, sin enlace de recuperación | Sí |
 | Forzar un error de la base de datos | 500 con «Error interno del servidor», sin detalle | Sí |
 | Buscar el número de cuenta completo en `pedidos` | No está, solo los últimos 4 | Sí |
 
@@ -110,9 +118,12 @@ tiempo no crean dos carritos, y dos clientes que pagan a la vez la última unida
 | 8 inicios de sesión correctos seguidos | 200 en todos, no gastan intentos | Sí |
 | 5 contraseñas equivocadas y un sexto intento | 429, también con la contraseña correcta | Sí |
 | Pedir el enlace de recuperación más veces de las permitidas | 429 | Sí |
+| Pedir un cuarto enlace para el mismo correo en 15 minutos (`tests/cuenta.test.js`) | 429 y no se envía | Sí |
 
 En el servidor los límites son: 10 intentos fallidos de inicio de sesión cada 15 minutos,
 20 registros o recuperaciones cada 15 minutos y 300 peticiones por minuto a toda la API, por IP.
+Además, cada correo recibe como máximo 3 enlaces de recuperación cada 15 minutos (`LIMITE_CORREO`),
+aunque se pidan desde computadores distintos.
 En las pruebas se bajan para no tener que hacer tantas peticiones.
 
 ## Dependencias

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthShell from '../components/AuthShell';
-import { Field, Message } from '../components/ui';
+import { Field, Message, PasswordRules } from '../components/ui';
 import { register } from '../services/auth.service';
 import { EMAIL_RE } from '../utils/format';
+import { WEAK_PASSWORD, isStrongPassword } from '../utils/password';
 
 // RF-13, RF-14: registro de clientes (el rol siempre es «cliente»; la contraseña se cifra en el backend)
 export default function RegisterPage() {
@@ -27,7 +28,7 @@ export default function RegisterPage() {
         const nombre = form.nombre.trim();
         const email = form.email.trim();
         if (!nombre || !email || !form.password) return fail('Complete todos los campos.', [!nombre ? 'nombre' : !email ? 'email' : 'password']);
-        if (form.password.length < 8) return fail('La contraseña debe tener al menos 8 caracteres.', ['password']);
+        if (!isStrongPassword(form.password)) return fail(WEAK_PASSWORD, ['password']);
         if (!EMAIL_RE.test(email)) return fail('Ingrese un correo electrónico válido.', ['email']);
 
         setSubmitting(true);
@@ -53,8 +54,11 @@ export default function RegisterPage() {
                     value={form.nombre} onChange={change} invalid={invalid.includes('nombre')} />
                 <Field id="r-email" name="email" label="Correo electrónico" type="email" autoComplete="email"
                     value={form.email} onChange={change} invalid={invalid.includes('email')} />
-                <Field id="r-pass" name="password" label="Contraseña" type="password" autoComplete="new-password" hint="Mínimo 8 caracteres."
-                    value={form.password} onChange={change} invalid={invalid.includes('password')} />
+                <div className="pfield">
+                    <Field id="r-pass" name="password" label="Contraseña" type="password" autoComplete="new-password" aria-describedby="r-pass-rules"
+                        value={form.password} onChange={change} invalid={invalid.includes('password')} />
+                    <PasswordRules id="r-pass-rules" value={form.password} />
+                </div>
                 <button className="btn btn-primary btn-block" type="submit" disabled={submitting}>Crear cuenta</button>
                 <p className="center">¿Ya tienes cuenta? <Link className="linkbtn" to="/ingresar" style={{ minHeight: 32 }}>Iniciar sesión</Link></p>
                 <p className="fine" style={{ textAlign: 'center' }}>La contraseña se guarda cifrada con bcrypt (RNF-05).</p>

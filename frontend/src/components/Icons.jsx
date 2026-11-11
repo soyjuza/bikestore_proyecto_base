@@ -93,3 +93,21 @@ export function IconShop() {
         </svg>
     );
 }
+
+export function IconEye() {
+    return (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M1.8 10S4.7 4.6 10 4.6 18.2 10 18.2 10 15.3 15.4 10 15.4 1.8 10 1.8 10Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+            <circle cx="10" cy="10" r="2.6" stroke="currentColor" strokeWidth="1.4" />
+        </svg>
+    );
+}
+
+export function IconEyeOff() {
+    return (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M8.2 4.8c.6-.1 1.2-.2 1.8-.2 5.3 0 8.2 5.4 8.2 5.4a14 14 0 0 1-2.3 3M5.4 5.9C3 7.4 1.8 10 1.8 10s2.9 5.4 8.2 5.4c1.5 0 2.8-.4 3.9-1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M8.2 8.3a2.6 2.6 0 0 0 3.6 3.6M3 3l14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+    );
+}

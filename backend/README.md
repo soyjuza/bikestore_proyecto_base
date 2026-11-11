@@ -15,7 +15,9 @@ Copia `.env.example` como `.env` y completa:
   `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`.
 - `ADMIN_EMAIL` y `ADMIN_PASSWORD`: con esos datos se crea el administrador la primera vez que arranca el servidor.
 - `SMTP_...`: solo si se quiere que el enlace de recuperar contraseña llegue a un correo de verdad.
-  Si se deja vacío, el correo sale impreso en la consola del servidor y de ahí se copia el enlace.
+  En `.env.example` están los pasos para usar una cuenta de Gmail con contraseña de aplicación.
+  Si se deja vacío, el correo sale impreso en la consola del servidor y de ahí se copia el enlace;
+  además, la vista del correo (con el logo) se guarda en `correos-de-prueba/` para abrirla en el navegador.
 
 ## 3. Instalar y ejecutar
 
@@ -38,7 +40,7 @@ Las pruebas necesitan una base de datos aparte porque la borran y la vuelven a c
 npm test
 ```
 
-Son 129 pruebas. La base `bikestore_test` se crea sola a partir de `../sql/bikestore.sql`.
+Son 133 pruebas. La base `bikestore_test` se crea sola a partir de `../sql/bikestore.sql`.
 
 | Archivo | Qué prueba |
 |---------|------------|

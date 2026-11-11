@@ -4,7 +4,7 @@ const path = require("path");
 const { test, describe, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
-const { app, pool, request, correos, reiniciarBD, usuarioConSesion, iniciarSesion, bearer, cerrar } = require("./ayuda");
+const { app, pool, request, correos, tokenDelCorreo, reiniciarBD, usuarioConSesion, iniciarSesion, bearer, cerrar } = require("./ayuda");
 
 const UPLOADS = path.join(__dirname, "..", "uploads", "productos");
 const PNG = Buffer.from(
@@ -81,7 +81,7 @@ describe("Control de acceso por rol", () => {
 
   test("al registrarse no se puede escoger el rol", async () => {
     const res = await request(app).post("/api/auth/register")
-      .send({ nombre: "Intruso", email: "intruso@correo.com", password: "clave12345", rol: "admin", activo: 1, id_usuario: 1 });
+      .send({ nombre: "Intruso", email: "intruso@correo.com", password: "Clave12345*", rol: "admin", activo: 1, id_usuario: 1 });
     assert.equal(res.status, 201);
 
     const [[user]] = await pool.execute("SELECT rol FROM usuarios WHERE email = 'intruso@correo.com'");
@@ -173,7 +173,7 @@ describe("Tokens", () => {
     const sara = await usuarioConSesion({ email: "sara@correo.com" });
     const otroEquipo = await iniciarSesion("sara@correo.com");
 
-    await request(app).put("/api/users/me/password").set(bearer(sara.token)).send({ actual: "clave12345", nueva: "nuevaClave99" });
+    await request(app).put("/api/users/me/password").set(bearer(sara.token)).send({ actual: "clave12345", nueva: "NuevaClave99*" });
 
     assert.equal((await request(app).get("/api/cart").set(bearer(sara.token))).status, 401);
     assert.equal((await request(app).get("/api/cart").set(bearer(otroEquipo))).status, 401);
@@ -183,8 +183,8 @@ describe("Tokens", () => {
     const tomas = await usuarioConSesion({ email: "tomas@correo.com" });
 
     await request(app).post("/api/auth/recover").send({ email: "tomas@correo.com" });
-    const token = correos.at(-1).texto.match(/token=([a-f0-9]{64})/)[1];
-    await request(app).post("/api/auth/reset").send({ token, password: "recuperada77" });
+    const token = tokenDelCorreo();
+    await request(app).post("/api/auth/reset").send({ token, password: "Recuperada77*" });
 
     assert.equal((await request(app).get("/api/cart").set(bearer(tomas.token))).status, 401);
   });
@@ -284,7 +284,7 @@ describe("Inyección y datos mal formados", () => {
 
   test("un nombre con HTML se guarda como texto y la API siempre responde JSON", async () => {
     const nombre = '<script>alert("xss")</script>';
-    await request(app).post("/api/auth/register").send({ nombre, email: "xss@correo.com", password: "clave12345" });
+    await request(app).post("/api/auth/register").send({ nombre, email: "xss@correo.com", password: "Clave12345*" });
 
     const res = await request(app).get("/api/users?q=xss@correo.com").set(bearer(admin.token));
     assert.equal(res.body.data[0].nombre, nombre);
@@ -295,11 +295,11 @@ describe("Inyección y datos mal formados", () => {
 
 describe("Contraseñas y datos sensibles", () => {
   test("RNF-05: la contraseña se guarda cifrada con bcrypt, nunca en texto plano", async () => {
-    await request(app).post("/api/auth/register").send({ nombre: "Nora", email: "nora@correo.com", password: "miClaveSecreta1" });
+    await request(app).post("/api/auth/register").send({ nombre: "Nora", email: "nora@correo.com", password: "MiClaveSecreta1*" });
 
     const [[user]] = await pool.execute("SELECT password FROM usuarios WHERE email = 'nora@correo.com'");
     assert.match(user.password, /^\$2[aby]\$\d{2}\$.{53}$/);
-    assert.ok(!user.password.includes("miClaveSecreta1"));
+    assert.ok(!user.password.includes("MiClaveSecreta1*"));
   });
 
   test("ninguna respuesta trae la contraseña ni su hash", async () => {
@@ -318,7 +318,7 @@ describe("Contraseñas y datos sensibles", () => {
 
   test("el enlace de recuperación se guarda como hash y el token no viaja en la respuesta", async () => {
     const res = await request(app).post("/api/auth/recover").send({ email: "ana@correo.com" });
-    const token = correos.at(-1).texto.match(/token=([a-f0-9]{64})/)[1];
+    const token = tokenDelCorreo();
 
     const [filas] = await pool.execute("SELECT token FROM recuperaciones");
     assert.ok(filas.length > 0);
@@ -329,7 +329,7 @@ describe("Contraseñas y datos sensibles", () => {
   test("no se puede adivinar ni reutilizar un enlace de recuperación", async () => {
     const inventado = "a".repeat(64);
     assert.equal((await request(app).get(`/api/auth/reset/${inventado}`)).status, 410);
-    assert.equal((await request(app).post("/api/auth/reset").send({ token: inventado, password: "clave12345" })).status, 410);
+    assert.equal((await request(app).post("/api/auth/reset").send({ token: inventado, password: "Clave12345*" })).status, 410);
     assert.equal((await request(app).get("/api/auth/reset/" + encodeURIComponent("' OR '1'='1"))).status, 410);
   });
 

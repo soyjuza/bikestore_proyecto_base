@@ -2,6 +2,7 @@
    Guarda todo en localStorage y aplica las mismas reglas que debe aplicar el backend real,
    para que el frontend se pueda usar completo mientras se construye la API.
    Cada función corresponde a un endpoint; ver README.md para la tabla de rutas. */
+import { WEAK_PASSWORD, isStrongPassword } from '../../utils/password';
 import { SEED_PRODUCTOS, SEED_USUARIOS } from '../../data/seed';
 import { getUser } from '../../utils/storage';
 import { EMAIL_RE, isoDate, today } from '../../utils/format';
@@ -146,7 +147,7 @@ export async function login({ email, password }) {
 export async function register({ nombre, email, password }) {
     await wait();
     if (!nombre || !email || !password) throw new MockError('Complete todos los campos.');
-    if (password.length < 8) throw new MockError('La contraseña debe tener al menos 8 caracteres.');
+    if (!isStrongPassword(password)) throw new MockError(WEAK_PASSWORD);
     if (!EMAIL_RE.test(email)) throw new MockError('Ingrese un correo electrónico válido.');
     if (userByEmail(email)) throw new MockError('Este correo ya tiene una cuenta.', 409);
     const id = Math.max(0, ...DB.usuarios.map((u) => u.id_usuario)) + 1;
@@ -182,7 +183,7 @@ export async function checkResetToken(token) {
 export async function resetPassword(token, password) {
     await wait();
     const r = validResetToken(token);
-    if (!password || password.length < 8) throw new MockError('La contraseña debe tener al menos 8 caracteres.');
+    if (!isStrongPassword(password)) throw new MockError(WEAK_PASSWORD);
     findUser(r.id_usuario).password = password;
     r.usado = true;
     save();
@@ -349,7 +350,7 @@ export async function changePassword({ actual, nueva }) {
     await wait();
     const u = currentUser();
     if (actual !== u.password) throw new MockError('La contraseña actual no es correcta.');
-    if (!nueva || nueva.length < 8) throw new MockError('La contraseña nueva debe tener al menos 8 caracteres.');
+    if (!isStrongPassword(nueva)) throw new MockError(WEAK_PASSWORD);
     u.password = nueva;
     save();
 }

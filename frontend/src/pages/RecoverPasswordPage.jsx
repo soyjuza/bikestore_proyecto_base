@@ -1,17 +1,21 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthShell from '../components/AuthShell';
-import { Field, Message } from '../components/ui';
+import { Field, Message, PasswordRules } from '../components/ui';
+import { WEAK_PASSWORD, isStrongPassword } from '../utils/password';
 import { checkResetToken, requestPasswordReset, resetPassword } from '../services/auth.service';
 import { USE_MOCK } from '../config/env';
 
 /* RF-16: recuperar contraseña en dos pasos.
    1) /recuperar            -> se pide el correo y el backend envía un enlace con un token de un solo uso (30 min).
-   2) /recuperar?token=...  -> se valida el token y se guarda la contraseña nueva. */
+   2) /recuperar#token=...  -> se valida el token y se guarda la contraseña nueva.
+   El token llega después de # porque esa parte nunca sale del navegador (no queda en registros de servidores).
+   También se acepta ?token=... por los enlaces que se hayan enviado antes del cambio. */
 export default function RecoverPasswordPage() {
     const [params] = useSearchParams();
+    const { hash } = useLocation();
     const navigate = useNavigate();
-    const token = params.get('token');
+    const token = new URLSearchParams(hash.slice(1)).get('token') || params.get('token');
 
     const [step, setStep] = useState(token ? 'validando' : 'correo');
     const [email, setEmail] = useState('');
@@ -19,6 +23,22 @@ export default function RecoverPasswordPage() {
     const [pass, setPass] = useState({ a: '', b: '' });
     const [error, setError] = useState('');
     const [invalid, setInvalid] = useState([]);
+    // Mientras una petición está en camino el botón no responde: un segundo clic gastaría el enlace
+    // dos veces y mostraría «El enlace ya no es válido» antes del mensaje correcto.
+    const [busy, setBusy] = useState(false);
+    const busyRef = useRef(false);
+
+    async function once(work) {
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setBusy(true);
+        try {
+            await work();
+        } finally {
+            busyRef.current = false;
+            setBusy(false);
+        }
+    }
 
     useEffect(() => {
         if (!token) {
@@ -36,33 +56,42 @@ export default function RecoverPasswordPage() {
             setInvalid(['email']);
             return;
         }
-        try {
-            const result = await requestPasswordReset(email.trim());
-            setMailToken(result?.token || null);
-            setError('');
-            setInvalid([]);
-            setStep('enviado');
-        } catch (err) {
-            setError(err.message);
-            setInvalid(['email']);
-        }
+        await once(async () => {
+            try {
+                const result = await requestPasswordReset(email.trim());
+                setMailToken(result?.token || null);
+                setError('');
+                setInvalid([]);
+                setStep('enviado');
+            } catch (err) {
+                setError(err.message);
+                setInvalid(['email']);
+            }
+        });
     }
 
     async function savePassword(e) {
         e.preventDefault();
-        if (pass.a.length < 8 || pass.a !== pass.b) {
-            setError('Las contraseñas no coinciden o tienen menos de 8 caracteres.');
-            setInvalid(['a', 'b']);
+        if (!isStrongPassword(pass.a)) {
+            setError(WEAK_PASSWORD);
+            setInvalid(['a']);
             return;
         }
-        try {
-            await resetPassword(token, pass.a);
-            setError('');
-            setStep('listo');
-        } catch (err) {
-            if (err.status === 410) setStep('usado');
-            else setError(err.message);
+        if (pass.a !== pass.b) {
+            setError('Las contraseñas no coinciden.');
+            setInvalid(['b']);
+            return;
         }
+        await once(async () => {
+            try {
+                await resetPassword(token, pass.a);
+                setError('');
+                setStep('listo');
+            } catch (err) {
+                if (err.status === 410) setStep('usado');
+                else setError(err.message);
+            }
+        });
     }
 
     function again() {
@@ -81,7 +110,7 @@ export default function RecoverPasswordPage() {
                 <div><Message kind="err">{error}</Message></div>
                 <Field id="rc-email" label="Correo electrónico" type="email" autoComplete="email"
                     value={email} onChange={(e) => setEmail(e.target.value)} invalid={invalid.includes('email')} />
-                <button className="btn btn-primary btn-block" type="submit">Enviar enlace</button>
+                <button className="btn btn-primary btn-block" type="submit" disabled={busy}>{busy ? 'Enviando…' : 'Enviar enlace'}</button>
                 <p className="center"><Link className="linkbtn" to="/ingresar" style={{ minHeight: 32 }}>Volver a iniciar sesión</Link></p>
             </form>
         );
@@ -95,7 +124,7 @@ export default function RecoverPasswordPage() {
                         <small>Correo simulado para {email}</small>
                         <b>BikeStore: recupera tu contraseña</b>
                         <small>El enlace dura 30 minutos y solo sirve una vez.</small>
-                        <Link className="btn btn-dark btn-sm" to={`/recuperar?token=${mailToken}`}>Abrir el enlace de recuperación</Link>
+                        <Link className="btn btn-dark btn-sm" to={`/recuperar#token=${mailToken}`}>Abrir el enlace de recuperación</Link>
                     </div>
                 )}
                 <p className="center"><button className="linkbtn" onClick={again} style={{ minHeight: 32 }}>Usar otro correo</button></p>
@@ -108,11 +137,14 @@ export default function RecoverPasswordPage() {
             <form className="frm" noValidate onSubmit={savePassword}>
                 <h1>Nueva contraseña</h1>
                 <div><Message kind="err">{error}</Message></div>
-                <Field id="n-pass" label="Nueva contraseña" type="password" autoComplete="new-password" hint="Mínimo 8 caracteres."
-                    value={pass.a} onChange={(e) => setPass({ ...pass, a: e.target.value })} invalid={invalid.includes('a')} />
+                <div className="pfield">
+                    <Field id="n-pass" label="Nueva contraseña" type="password" autoComplete="new-password" aria-describedby="n-pass-rules"
+                        value={pass.a} onChange={(e) => setPass({ ...pass, a: e.target.value })} invalid={invalid.includes('a')} />
+                    <PasswordRules id="n-pass-rules" value={pass.a} />
+                </div>
                 <Field id="n-pass2" label="Confirmar la contraseña" type="password" autoComplete="new-password"
                     value={pass.b} onChange={(e) => setPass({ ...pass, b: e.target.value })} invalid={invalid.includes('b')} />
-                <button className="btn btn-primary btn-block" type="submit">Guardar contraseña</button>
+                <button className="btn btn-primary btn-block" type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar contraseña'}</button>
             </form>
         );
     } else if (step === 'usado') {

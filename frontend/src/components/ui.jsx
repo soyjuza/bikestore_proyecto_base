@@ -1,8 +1,9 @@
 // Piezas pequeñas que se repiten en casi todas las páginas.
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { IconError, IconOk } from './Icons';
+import { IconError, IconEye, IconEyeOff, IconOk } from './Icons';
 import { urlImagen } from '../utils/format';
+import { PASSWORD_RULES } from '../utils/password';
 
 export function Message({ kind = 'ok', children }) {
     if (!children) return null;
@@ -15,12 +16,59 @@ export function Message({ kind = 'ok', children }) {
 }
 
 export function Field({ id, label, hint, invalid, type = 'text', ...props }) {
+    // Las contraseñas llevan el ojo para mostrar u ocultar lo escrito (el código de seguridad de la tarjeta no).
+    const isPassword = type === 'password' && String(props.autoComplete || '').includes('password');
+    const [visible, setVisible] = useState(false);
+    const input = (
+        <input
+            className="inp"
+            id={id}
+            name={id}
+            type={isPassword && visible ? 'text' : type}
+            aria-invalid={invalid ? 'true' : undefined}
+            {...(isPassword ? { autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false } : {})}
+            {...props}
+        />
+    );
     return (
         <div className="field">
             <label htmlFor={id}>{label}</label>
-            <input className="inp" id={id} name={id} type={type} aria-invalid={invalid ? 'true' : undefined} {...props} />
+            {isPassword ? (
+                <div className="passwrap">
+                    {input}
+                    <button
+                        type="button"
+                        className="eye"
+                        onClick={() => setVisible((v) => !v)}
+                        aria-label={visible ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
+                        aria-pressed={visible}
+                        aria-controls={id}
+                        title={visible ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
+                    >
+                        {visible ? <IconEyeOff /> : <IconEye />}
+                    </button>
+                </div>
+            ) : input}
             {hint && <p className="hint">{hint}</p>}
         </div>
+    );
+}
+
+// Lista de requisitos debajo de la contraseña nueva: cada uno se marca apenas se cumple.
+export function PasswordRules({ value, id }) {
+    return (
+        <ul className="prules" id={id} aria-label="Requisitos de la contraseña">
+            {PASSWORD_RULES.map((r) => {
+                const ok = r.test(value);
+                return (
+                    <li key={r.id} className={ok ? 'ok' : undefined}>
+                        <i aria-hidden="true" />
+                        {r.label}
+                        <span className="vh">{ok ? ' (cumplido)' : ' (falta)'}</span>
+                    </li>
+                );
+            })}
+        </ul>
     );
 }
 

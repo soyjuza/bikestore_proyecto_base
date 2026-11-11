@@ -20,13 +20,13 @@ En las rutas que piden sesión hay que poner el token que devuelve el login en l
 Registro, `POST /auth/register`:
 
 ```json
-{ "nombre": "Laura Gómez", "email": "laura@correo.com", "password": "clave12345" }
+{ "nombre": "Laura Gómez", "email": "laura@correo.com", "password": "Clave2026*" }
 ```
 
 Inicio de sesión, `POST /auth/login`:
 
 ```json
-{ "email": "laura@correo.com", "password": "clave12345" }
+{ "email": "laura@correo.com", "password": "Clave2026*" }
 ```
 
 Responde `user` y `token`. Para entrar como administrador se usan el correo y la contraseña
@@ -37,7 +37,10 @@ Recuperar contraseña:
 1. `POST /auth/recover` con `{ "email": "laura@correo.com" }`.
    Si no hay SMTP configurado, el correo sale en la consola del servidor. Ahí está el enlace con el token.
 2. `GET /auth/reset/EL_TOKEN` responde 200 si el enlace todavía sirve y 410 si ya venció o ya se usó.
-3. `POST /auth/reset` con `{ "token": "EL_TOKEN", "password": "claveNueva2" }`.
+3. `POST /auth/reset` con `{ "token": "EL_TOKEN", "password": "ClaveNueva2*" }`.
+
+La contraseña debe tener al menos 8 caracteres, con una mayúscula, una minúscula, un número y un carácter especial.
+En el correo el enlace se ve así: `http://localhost:5173/recuperar#token=EL_TOKEN`.
 
 ## Carrito (con token de cliente)
 

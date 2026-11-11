@@ -3,7 +3,8 @@ const pool = require("../config/db");
 const env = require("../config/env");
 const AppError = require("../utils/AppError");
 const { createToken } = require("../utils/jwt");
-const { texto, correo, esCorreo, esPassword, enteroPositivo, escaparLike } = require("../utils/validar");
+const { avisarCambioDeContrasena } = require("./auth.service");
+const { texto, correo, esCorreo, validarPasswordSegura, enteroPositivo, escaparLike } = require("../utils/validar");
 
 /* Usuarios. Nunca se devuelve la columna password.
    Formato: { id_usuario, nombre, email, rol, activo, created_at } */
@@ -83,15 +84,14 @@ async function changePassword(idUsuario, data) {
   if (!user || !(await bcrypt.compare(actual, user.password))) {
     throw new AppError("La contraseña actual no es correcta.", 400);
   }
-  if (nueva.length < 8) {
-    throw new AppError("La contraseña nueva debe tener al menos 8 caracteres.", 400);
-  }
-  if (!esPassword(nueva)) {
-    throw new AppError("La contraseña nueva es demasiado larga.", 400);
+  validarPasswordSegura(nueva);
+  if (await bcrypt.compare(nueva, user.password)) {
+    throw new AppError("La contraseña nueva debe ser distinta de la actual.", 400);
   }
 
   user.password = await bcrypt.hash(nueva, env.bcryptRounds);
   await pool.execute("UPDATE usuarios SET password = ? WHERE id_usuario = ?", [user.password, idUsuario]);
+  avisarCambioDeContrasena(idUsuario); // sin await: no se espera a que el correo salga
 
   return { token: createToken(user) };
 }

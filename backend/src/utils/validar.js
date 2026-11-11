@@ -21,6 +21,28 @@ function esPassword(valor) {
   return typeof valor === "string" && valor.length >= 8 && Buffer.byteLength(valor) <= 72;
 }
 
+const PASSWORD_DEBIL =
+  "La contraseña debe tener al menos 8 caracteres, con una mayúscula, una minúscula, un número y un carácter especial.";
+const PASSWORD_LARGA = "La contraseña es demasiado larga.";
+
+// Contraseña segura (HU05 y HU22): 8 caracteres o más, con mayúscula, minúscula, número y carácter especial.
+// Se usa al crear la cuenta y cada vez que se cambia la contraseña; el inicio de sesión no la exige
+// para que las cuentas viejas puedan seguir entrando.
+function validarPasswordSegura(valor) {
+  if (typeof valor !== "string" || valor.length < 8 || !/[a-zñ]/.test(valor) || !/[A-ZÑ]/.test(valor) ||
+      !/\d/.test(valor) || !/[^A-Za-zÑñ0-9\s]/.test(valor)) {
+    throw new AppError(PASSWORD_DEBIL, 400);
+  }
+  if (!esPassword(valor)) {
+    throw new AppError(PASSWORD_LARGA, 400);
+  }
+}
+
+// Para escribir un dato del usuario dentro de un correo en HTML sin que se interprete como código
+function escaparHtml(valor) {
+  return String(valor).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
 // "15" o 15 -> 15. Cualquier otra cosa -> null
 function enteroPositivo(valor) {
   if (typeof valor === "number" && Number.isInteger(valor) && valor > 0) return valor;
@@ -47,4 +69,7 @@ function escaparLike(valor) {
   return valor.replace(/[\\%_]/g, "\\$&");
 }
 
-module.exports = { texto, correo, esCorreo, esPassword, enteroPositivo, booleano, esFecha, escaparLike };
+module.exports = {
+  texto, correo, esCorreo, esPassword, validarPasswordSegura, escaparHtml, PASSWORD_DEBIL,
+  enteroPositivo, booleano, esFecha, escaparLike,
+};

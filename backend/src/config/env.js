@@ -52,6 +52,7 @@ module.exports = {
     general: Number(process.env.LIMITE_GENERAL || 300),      // por minuto, toda la API
     login: Number(process.env.LIMITE_LOGIN || 10),           // intentos fallidos cada 15 minutos
     cuenta: Number(process.env.LIMITE_CUENTA || 20),         // registro y recuperación, cada 15 minutos
+    correo: Number(process.env.LIMITE_CORREO || 3),          // enlaces de recuperación a un mismo correo, cada 15 minutos
   },
   mail: {
     host: process.env.SMTP_HOST,

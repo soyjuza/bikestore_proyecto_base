@@ -11,3 +11,6 @@ uploads/productos/*
 !uploads/productos/.gitkeep
 
 **/package-lock.json
+
+# vistas de los correos cuando no hay servidor SMTP
+correos-de-prueba/

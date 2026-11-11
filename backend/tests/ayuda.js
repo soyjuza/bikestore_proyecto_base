@@ -7,6 +7,7 @@ process.env.BCRYPT_ROUNDS ??= "4";
 process.env.LIMITE_GENERAL ??= "100000";
 process.env.LIMITE_LOGIN ??= "100000";
 process.env.LIMITE_CUENTA ??= "100000";
+process.env.LIMITE_CORREO ??= "100000";
 
 const fs = require("fs");
 const path = require("path");
@@ -29,6 +30,22 @@ const correos = [];
 mailer.enviarCorreo = async (correo) => {
   correos.push(correo);
 };
+
+// Token del último correo que trae enlace de recuperación (después del cambio llega además un aviso sin enlace)
+function tokenDelCorreo() {
+  const correo = correos.findLast((c) => /token=[a-f0-9]{64}/.test(c.texto));
+  return correo.texto.match(/token=([a-f0-9]{64})/)[1];
+}
+
+// El aviso de cambio de contraseña se envía después de responder: se espera a que aparezca en la lista
+async function esperarCorreo(asunto, para) {
+  for (let i = 0; i < 50; i++) {
+    const correo = correos.findLast((c) => c.asunto === asunto && c.para === para);
+    if (correo) return correo;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  throw new Error(`No llegó el correo «${asunto}» para ${para}`);
+}
 
 // Deja la base de datos de pruebas recién creada, con los 17 productos de sql/bikestore.sql
 async function reiniciarBD() {
@@ -84,4 +101,4 @@ async function cerrar() {
   await pool.end();
 }
 
-module.exports = { app, pool, request, correos, reiniciarBD, crearUsuario, iniciarSesion, usuarioConSesion, bearer, cerrar };
+module.exports = { app, pool, request, correos, tokenDelCorreo, esperarCorreo, reiniciarBD, crearUsuario, iniciarSesion, usuarioConSesion, bearer, cerrar };

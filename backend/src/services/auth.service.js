@@ -5,7 +5,8 @@ const env = require("../config/env");
 const mailer = require("../utils/mailer");
 const { createToken } = require("../utils/jwt");
 const AppError = require("../utils/AppError");
-const { texto, correo, esCorreo, esPassword } = require("../utils/validar");
+const { texto, correo, esCorreo, validarPasswordSegura } = require("../utils/validar");
+const { correoRecuperacion, correoContrasenaCambiada } = require("../utils/plantillasCorreo");
 
 const MINUTOS_ENLACE = 30;
 const ENLACE_INVALIDO = "El enlace ya no es válido. Solicite uno nuevo.";
@@ -29,12 +30,7 @@ async function registerUser(data) {
   if (!nombre || !email || !password) {
     throw new AppError("Complete todos los campos.", 400);
   }
-  if (password.length < 8) {
-    throw new AppError("La contraseña debe tener al menos 8 caracteres.", 400);
-  }
-  if (!esPassword(password)) {
-    throw new AppError("La contraseña es demasiado larga.", 400);
-  }
+  validarPasswordSegura(password);
   if (!esCorreo(email)) {
     throw new AppError("Ingrese un correo electrónico válido.", 400);
   }
@@ -126,6 +122,16 @@ async function requestPasswordReset(emailRecibido) {
     throw new AppError("Su cuenta está desactivada. Comuníquese con el administrador de la tienda.", 403);
   }
 
+  // Límite por correo, además del límite por IP: así nadie llena de mensajes la bandeja de otra persona
+  // cambiando de computador o de red.
+  const [[recientes]] = await pool.execute(
+    "SELECT COUNT(*) AS n FROM recuperaciones WHERE id_usuario = ? AND created_at > NOW() - INTERVAL 15 MINUTE",
+    [user.id_usuario],
+  );
+  if (recientes.n >= env.limites.correo) {
+    throw new AppError("Ya enviamos varios enlaces a este correo. Revise su bandeja de entrada y de spam, o espere 15 minutos.", 429);
+  }
+
   const token = crypto.randomBytes(32).toString("hex");
 
   // si había un enlace anterior sin usar, deja de servir: solo vale el último
@@ -138,19 +144,12 @@ async function requestPasswordReset(emailRecibido) {
     [user.id_usuario, hashToken(token)],
   );
 
-  const enlace = `${env.frontendUrl}/recuperar?token=${token}`;
+  // El token va después de # y no de ?: lo que va después de # nunca sale del navegador,
+  // así no queda guardado en los registros de ningún servidor ni se filtra a otras páginas.
+  const enlace = `${env.frontendUrl}/recuperar#token=${token}`;
 
   try {
-    await mailer.enviarCorreo({
-      para: email,
-      asunto: "BikeStore: recupera tu contraseña",
-      texto:
-        `Hola, ${user.nombre}.\n\n` +
-        `Recibimos una solicitud para cambiar la contraseña de tu cuenta de BikeStore. ` +
-        `Abre este enlace para crear una contraseña nueva:\n\n${enlace}\n\n` +
-        `El enlace dura ${MINUTOS_ENLACE} minutos y solo sirve una vez. ` +
-        `Si no fuiste tú, ignora este correo: tu contraseña sigue siendo la misma.`,
-    });
+    await mailer.enviarCorreo({ para: email, ...correoRecuperacion({ nombre: user.nombre, enlace, minutos: MINUTOS_ENLACE }) });
   } catch (error) {
     console.error("No se pudo enviar el correo de recuperación:", error.message);
     throw new AppError("No se pudo enviar el correo. Intente de nuevo más tarde.", 502);
@@ -181,15 +180,11 @@ async function checkResetToken(token) {
 }
 
 async function resetPassword(token, password) {
-  if (typeof password !== "string" || password.length < 8) {
-    throw new AppError("La contraseña debe tener al menos 8 caracteres.", 400);
-  }
-  if (!esPassword(password)) {
-    throw new AppError("La contraseña es demasiado larga.", 400);
-  }
+  validarPasswordSegura(password);
 
   const hash = await bcrypt.hash(password, env.bcryptRounds);
   const conn = await pool.getConnection();
+  let idUsuario;
 
   try {
     await conn.beginTransaction();
@@ -207,12 +202,34 @@ async function resetPassword(token, password) {
     );
 
     await conn.commit();
+    idUsuario = recuperacion.id_usuario;
   } catch (error) {
     await conn.rollback();
     throw error;
   } finally {
     conn.release();
   }
+
+  // Sin await: la respuesta no espera a que Gmail entregue el aviso (tarda 2 o 3 segundos).
+  avisarCambioDeContrasena(idUsuario);
 }
 
-module.exports = { registerUser, loginUser, requestPasswordReset, checkResetToken, resetPassword };
+// Correo de aviso después de cambiar la contraseña. Si no sale, el cambio ya quedó hecho:
+// solo se anota el error y no se le muestra al usuario. Nunca lanza error, por eso se puede
+// llamar sin esperar la respuesta.
+async function avisarCambioDeContrasena(idUsuario) {
+  try {
+    const [rows] = await pool.execute("SELECT nombre, email FROM usuarios WHERE id_usuario = ?", [idUsuario]);
+    if (!rows.length) return;
+    await mailer.enviarCorreo({
+      para: rows[0].email,
+      ...correoContrasenaCambiada({ nombre: rows[0].nombre, enlaceRecuperar: `${env.frontendUrl}/recuperar` }),
+    });
+  } catch (error) {
+    console.error("No se pudo enviar el aviso de cambio de contraseña:", error.message);
+  }
+}
+
+module.exports = {
+  registerUser, loginUser, requestPasswordReset, checkResetToken, resetPassword, avisarCambioDeContrasena,
+};

@@ -1,7 +1,7 @@
 // Cuenta propia (mis datos, contraseña) y administración de usuarios (RF-27 a RF-31)
 const { test, describe, before, after } = require("node:test");
 const assert = require("node:assert/strict");
-const { app, request, reiniciarBD, crearUsuario, usuarioConSesion, iniciarSesion, bearer, cerrar } = require("./ayuda");
+const { app, request, esperarCorreo, reiniciarBD, crearUsuario, usuarioConSesion, iniciarSesion, bearer, cerrar } = require("./ayuda");
 
 let admin;
 let marta;
@@ -43,7 +43,7 @@ describe("Mis datos", () => {
 describe("Cambiar contraseña", () => {
   test("pide la contraseña actual", async () => {
     const res = await request(app).put("/api/users/me/password").set(bearer(marta.token))
-      .send({ actual: "noeslaclave", nueva: "nuevaClave99" });
+      .send({ actual: "noeslaclave", nueva: "NuevaClave99*" });
     assert.equal(res.status, 400);
     assert.equal(res.body.message, "La contraseña actual no es correcta.");
   });
@@ -54,16 +54,26 @@ describe("Cambiar contraseña", () => {
     assert.equal(res.status, 400);
   });
 
+  test("la nueva debe ser segura: mayúscula, minúscula, número y carácter especial", async () => {
+    const res = await request(app).put("/api/users/me/password").set(bearer(marta.token))
+      .send({ actual: "clave12345", nueva: "clave123456" });
+    assert.equal(res.status, 400);
+    assert.match(res.body.message, /una mayúscula, una minúscula, un número y un carácter especial/);
+  });
+
   test("cambia la contraseña y entrega un token nuevo", async () => {
     const res = await request(app).put("/api/users/me/password").set(bearer(marta.token))
-      .send({ actual: "clave12345", nueva: "nuevaClave99" });
+      .send({ actual: "clave12345", nueva: "NuevaClave99*" });
     assert.equal(res.status, 200);
     assert.ok(res.body.token);
 
     const conNuevo = await request(app).get("/api/cart").set(bearer(res.body.token));
     assert.equal(conNuevo.status, 200);
-    await iniciarSesion("marta.lozano@correo.com", "nuevaClave99");
+    await iniciarSesion("marta.lozano@correo.com", "NuevaClave99*");
     marta.token = res.body.token;
+
+    // y le llega el aviso de que su contraseña cambió
+    await esperarCorreo("Tu contraseña de BikeStore fue cambiada", "marta.lozano@correo.com");
   });
 });
 
