@@ -21,7 +21,7 @@ async function login(req, res, next) {
 async function requestReset(req, res, next) {
   try {
     await authService.requestPasswordReset(req.body.email);
-    res.json({ ok: true, message: "Le enviamos un enlace a su correo para recuperar la contraseña." });
+    res.json({ ok: true, message: "Si el correo está registrado, le enviamos un enlace para recuperar la contraseña." });
   } catch (error) {
     next(error);
   }

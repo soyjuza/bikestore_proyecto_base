@@ -115,11 +115,11 @@ async function requestPasswordReset(emailRecibido) {
   );
   const user = rows[0];
 
-  if (!user) {
-    throw new AppError("No hay una cuenta registrada con ese correo.", 404);
-  }
-  if (!user.activo) {
-    throw new AppError("Su cuenta está desactivada. Comuníquese con el administrador de la tienda.", 403);
+  // Se responde siempre lo mismo, exista o no el correo y esté activa o no la cuenta: así nadie
+  // puede averiguar qué correos tienen cuenta pidiendo recuperaciones. Si no hay a quién enviarle,
+  // se corta aquí en silencio y el controlador responde el mismo mensaje genérico.
+  if (!user || !user.activo) {
+    return;
   }
 
   // Límite por correo, además del límite por IP: así nadie llena de mensajes la bandeja de otra persona
@@ -151,8 +151,9 @@ async function requestPasswordReset(emailRecibido) {
   try {
     await mailer.enviarCorreo({ para: email, ...correoRecuperacion({ nombre: user.nombre, enlace, minutos: MINUTOS_ENLACE }) });
   } catch (error) {
+    // Si el correo no sale, se anota en la consola pero no se le avisa al cliente: la respuesta
+    // es siempre la misma para no revelar si el correo existe.
     console.error("No se pudo enviar el correo de recuperación:", error.message);
-    throw new AppError("No se pudo enviar el correo. Intente de nuevo más tarde.", 502);
   }
 }
 

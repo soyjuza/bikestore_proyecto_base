@@ -98,7 +98,7 @@ describe("HU22 Recuperar contraseña", () => {
   test("envía el enlace al correo de una cuenta que existe", async () => {
     const res = await request(app).post("/api/auth/recover").send({ email: "sofia@correo.com" });
     assert.equal(res.status, 200);
-    assert.equal(res.body.message, "Le enviamos un enlace a su correo para recuperar la contraseña.");
+    assert.equal(res.body.message, "Si el correo está registrado, le enviamos un enlace para recuperar la contraseña.");
     assert.equal(correos.at(-1).para, "sofia@correo.com");
     // el token va después de # para que no quede en los registros de ningún servidor
     assert.match(correos.at(-1).texto, /\/recuperar#token=[a-f0-9]{64}/);
@@ -108,11 +108,12 @@ describe("HU22 Recuperar contraseña", () => {
     assert.equal(res.body.token, undefined);
   });
 
-  test("correo sin cuenta: no envía nada", async () => {
+  test("correo sin cuenta: responde igual pero no envía nada", async () => {
     const antes = correos.length;
     const res = await request(app).post("/api/auth/recover").send({ email: "nadie@correo.com" });
-    assert.equal(res.status, 404);
-    assert.equal(res.body.message, "No hay una cuenta registrada con ese correo.");
+    // misma respuesta que con un correo que sí existe, para no revelar cuáles están registrados
+    assert.equal(res.status, 200);
+    assert.equal(res.body.message, "Si el correo está registrado, le enviamos un enlace para recuperar la contraseña.");
     assert.equal(correos.length, antes);
   });
 
