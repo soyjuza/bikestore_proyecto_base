@@ -111,7 +111,8 @@ a.hello:hover{text-decoration:underline;text-underline-offset:3px}
 /* texto a la izquierda y bicicleta a la derecha; en celular, uno encima del otro */
 .stage{position:sticky;top:0;height:100vh;height:100svh;min-height:620px;overflow:hidden;color:#F4F5F5;display:grid;
   grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);align-items:center;gap:clamp(16px,3vw,56px);
-  padding:var(--hdr) clamp(20px,4.5vw,72px) 64px}
+  /* al alejar el zoom (pantalla ancha) el texto y la bici se alinean con el logo, como .wrap; al acercar queda igual */
+  padding:var(--hdr) max(clamp(20px,4.5vw,72px),calc((100% - 1320px)/2 + 48px)) 64px}
 /* lienzo de los cubos: cubre toda la portada para que el remolino pueda subir fuera de la caja de la bici */
 .hero-cubos{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;animation:aparecer 1.4s var(--ease) .25s both}
 @keyframes aparecer{from{opacity:0}to{opacity:1}}
@@ -143,7 +144,7 @@ a.hello:hover{text-decoration:underline;text-underline-offset:3px}
 .hero-bikes.cubos img{opacity:0}
 .hero-bikes::after{content:"";position:absolute;left:10%;right:10%;bottom:-2.5%;height:8%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.6),transparent);z-index:-1;opacity:var(--sombra,1)}
 @keyframes bikeIn{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
-.scene-nav{position:absolute;left:clamp(16px,4vw,48px);bottom:22px;z-index:4;display:flex;align-items:center;gap:9px}
+.scene-nav{position:absolute;left:max(clamp(16px,4vw,48px),calc((100% - 1320px)/2 + 48px));bottom:22px;z-index:4;display:flex;align-items:center;gap:9px}
 .nav-play{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(244,245,245,.35);background:none;color:#F4F5F5;cursor:pointer;transition:background .2s,border-color .2s}
 .nav-play:hover{background:rgba(255,255,255,.14);border-color:#fff}
 .nav-dot{position:relative;width:44px;height:22px;display:grid;align-items:center;padding:0;border:0;background:none;cursor:pointer}
@@ -153,7 +154,7 @@ a.hello:hover{text-decoration:underline;text-underline-offset:3px}
 .nav-dot.on i{animation:llenar 6000ms linear forwards}
 .scene-nav.pausa .nav-dot.on i{animation:none;transform:scaleX(1)}
 @keyframes llenar{to{transform:scaleX(1)}}
-.cue{position:absolute;bottom:22px;right:clamp(16px,4vw,48px);z-index:4;display:flex;align-items:center;gap:12px;color:rgba(244,245,245,.6);font-size:13px}
+.cue{position:absolute;bottom:22px;right:max(clamp(16px,4vw,48px),calc((100% - 1320px)/2 + 48px));z-index:4;display:flex;align-items:center;gap:12px;color:rgba(244,245,245,.6);font-size:13px}
 .cue i{width:44px;height:1px;background:rgba(244,245,245,.25);position:relative;overflow:hidden}
 .cue i::after{content:"";position:absolute;inset:0;background:#F4F5F5;animation:sweep 2.2s var(--ease) infinite}
 @keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
