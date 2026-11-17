@@ -142,11 +142,7 @@ function azar(semilla) {
 
 
 const cuadroSiguiente = () => new Promise((r) => requestAnimationFrame(r));
-// espera a que el navegador esté desocupado (o máximo `tope` ms)
-const desocupado = (tope) => new Promise((r) => {
-    if ('requestIdleCallback' in window) requestIdleCallback(() => r(), { timeout: tope });
-    else setTimeout(r, Math.min(tope, 200));
-});
+const ALCANCE = 110;                  // ms: qué tan rápido alcanza el efecto un scroll que ya iba adelantado
 
 /* Compila los programas de la tarjeta gráfica. Si el navegador lo permite
    (KHR_parallel_shader_compile), la compilación corre aparte y aquí solo se pregunta
@@ -204,7 +200,12 @@ export default function BiciCubos({ src, hueco, portada, onListo }) {
 
         let vivo = true, cuadro = 0, listo = false;
         let gl = null, pCubo, pFoto, vaoCubo, vaoFoto, tablaCubos, texCeldas, foto = null;
-        let W = 0, H = 0, ix = 0, iy = 0, iw = 0, ih = 0, cols = 0, rows = 0, nCubos = 0, p = 0;
+        let W = 0, H = 0, ix = 0, iy = 0, iw = 0, ih = 0, cols = 0, rows = 0, nCubos = 0;
+        // p: hasta dónde se ha bajado; pv: lo que se está mostrando. Son iguales, salvo cuando el
+        // efecto arranca con la página ya bajada: ahí pv alcanza a p en unos cuadros en vez de saltar.
+        let p = 0, pv = 0, alcanzar = false, antes = 0;
+        let bajo = null;
+        const primerScroll = new Promise((r) => { bajo = r; });
         let cajaArmada = '';
         const pequeno = document.createElement('canvas');   // la foto reducida a una celda por píxel
 
@@ -278,19 +279,26 @@ export default function BiciCubos({ src, hueco, portada, onListo }) {
             if (caja !== cajaArmada) { cajaArmada = caja; armar(); }
         }
 
-        function pintar() {
+        function pintar(ahora) {
             cuadro = 0;
             if (!listo) return;
+            let seguir = false;
+            if (alcanzar) {
+                const dt = Math.min(64, Math.max(0, (ahora ?? performance.now()) - antes));
+                antes = ahora ?? performance.now();
+                pv += (p - pv) * (1 - Math.exp(-dt / ALCANCE));
+                if (Math.abs(p - pv) < 0.001) { pv = p; alcanzar = false; } else seguir = true;
+            } else pv = p;
             gl.viewport(0, 0, lienzo.width, lienzo.height);
             gl.depthMask(true);
             gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             // la sombra del piso se va cuando la bici se deshace
-            hueco.current?.style.setProperty('--sombra', (1 - Math.min(1, Math.max(0, (p - A0) / (AW + ESPERA + 0.12)))).toFixed(3));
+            hueco.current?.style.setProperty('--sombra', (1 - Math.min(1, Math.max(0, (pv - A0) / (AW + ESPERA + 0.12)))).toFixed(3));
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
             // 1) la foto, con huecos donde la ola ya pasó
-            if (p < A0 + AW) {
+            if (pv < A0 + AW) {
                 gl.useProgram(pFoto.p);
                 gl.disable(gl.DEPTH_TEST);
                 gl.enable(gl.BLEND);
@@ -302,7 +310,7 @@ export default function BiciCubos({ src, hueco, portada, onListo }) {
                 gl.uniform4f(pFoto.u.uCaja, ix, iy, iw, ih);
                 gl.uniform2f(pFoto.u.uRejilla, cols, rows);
                 gl.uniform1f(pFoto.u.uLado, LADO);
-                gl.uniform1f(pFoto.u.uP, p);
+                gl.uniform1f(pFoto.u.uP, pv);
                 gl.uniform1f(pFoto.u.uA0, A0);
                 gl.uniform1f(pFoto.u.uAW, AW);
                 gl.bindVertexArray(vaoFoto);
@@ -310,11 +318,11 @@ export default function BiciCubos({ src, hueco, portada, onListo }) {
             }
 
             // 2) los cubos: primero los macizos y después los que se desvanecen, mezclados encima
-            if (p > A0 && nCubos) {
+            if (pv > A0 && nCubos) {
                 gl.useProgram(pCubo.p);
                 gl.uniform2f(pCubo.u.uTam, W, H);
                 gl.uniform4f(pCubo.u.uCaja, ix, iy, iw, ih);
-                gl.uniform1f(pCubo.u.uP, p);
+                gl.uniform1f(pCubo.u.uP, pv);
                 gl.uniform1f(pCubo.u.uLado, LADO);
                 gl.bindVertexArray(vaoCubo);
                 gl.enable(gl.DEPTH_TEST);
@@ -329,6 +337,7 @@ export default function BiciCubos({ src, hueco, portada, onListo }) {
                 gl.depthMask(true);
             }
             gl.bindVertexArray(null);
+            if (seguir) pedir();
         }
         const pedir = () => { if (!cuadro) cuadro = requestAnimationFrame(pintar); };
 
@@ -336,7 +345,8 @@ export default function BiciCubos({ src, hueco, portada, onListo }) {
         // Si no cambió (por ejemplo, ya se pasó la portada), no se vuelve a pintar.
         function alScroll() {
             const el = portada.current;
-            if (!el || !listo) return;
+            if (!el) return;
+            if (!listo) { if (el.getBoundingClientRect().top < 0) bajo?.(); return; }
             const max = Math.max(1, el.offsetHeight - window.innerHeight);
             const np = Math.min(1, Math.max(0, -el.getBoundingClientRect().top / max));
             if (np !== p) { p = np; pedir(); }
@@ -356,25 +366,21 @@ export default function BiciCubos({ src, hueco, portada, onListo }) {
         const perdido = (ev) => { ev.preventDefault(); listo = false; avisar.current?.(false); };
         lienzo.addEventListener('webglcontextlost', perdido);
 
-        /* Arranque sin prisa: mientras tanto se ve la foto normal de la bici, idéntica,
-           así que se espera a que la página cargue y el navegador esté desocupado. */
+        /* Arranque: la foto (descargada y decodificada fuera del hilo principal) y los programas de la
+           tarjeta gráfica se preparan al tiempo, mientras la bici hace su entrada. Mientras tanto se ve
+           la foto normal, idéntica. */
         (async () => {
-            // que termine la entrada de la bici (si no, se mediría a mitad del movimiento)
-            await Promise.all((hueco.current?.getAnimations?.() || []).map((a) => a.finished.catch(() => {})));
-            await desocupado(1500);
-            if (!vivo) return;
-
-            // la foto se descarga y se decodifica fuera del hilo principal
-            const blob = await (await fetch(src)).blob();
-            const bmp = await createImageBitmap(blob, { premultiplyAlpha: 'premultiply' });
-            if (!vivo) { bmp.close(); return; }
+            const entradas = [...(hueco.current?.getAnimations?.() || []), ...(lienzo.getAnimations?.() || [])];
+            const entrada = Promise.all(entradas.map((a) => a.finished.catch(() => {})));
+            const cargarFoto = fetch(src)
+                .then((r) => r.blob())
+                .then((blob) => createImageBitmap(blob, { premultiplyAlpha: 'premultiply' }));
 
             gl = lienzo.getContext('webgl2', { antialias: true, alpha: true, premultipliedAlpha: true });
-            if (!gl) return;
-            [pCubo, pFoto] = await programas(gl, [[VS_CUBO, FS_COLOR], [VS_FOTO, FS_FOTO]]);
-            if (!vivo) return;
-            await desocupado(500);
-            if (!vivo) return;
+            if (!gl) { cargarFoto.then((b) => b.close(), () => {}); return; }
+            const [bmp, progs] = await Promise.all([cargarFoto, programas(gl, [[VS_CUBO, FS_COLOR], [VS_FOTO, FS_FOTO]])]);
+            if (!vivo) { bmp.close(); return; }
+            [pCubo, pFoto] = progs;
 
             // un cubo: 6 caras, 2 triángulos por cara, cada esquina con la dirección de su cara
             const molde = [];
@@ -414,10 +420,20 @@ export default function BiciCubos({ src, hueco, portada, onListo }) {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bmp);
             foto = { w: bmp.width, h: bmp.height, bmp, tex };
 
+            // se espera a que la bici termine de entrar (para medirla quieta); pero si ya se bajó,
+            // la entrada se termina de una vez para que el efecto arranque sin hacer esperar
+            if (portada.current && portada.current.getBoundingClientRect().top < 0) bajo();
+            await Promise.race([entrada, primerScroll]);
+            if (!vivo) return;
+            entradas.forEach((a) => { try { a.finish(); } catch { /* ya terminó */ } });
+
             listo = true;
             p = -1;            // fuerza el primer dibujo
             medir();
             alScroll();
+            pv = 0;            // si ya se había bajado, el efecto alcanza esa posición en vez de saltar
+            alcanzar = p > 0.001;
+            antes = performance.now();
             pintar();
             await cuadroSiguiente();
             if (vivo && listo) avisar.current?.(true);
