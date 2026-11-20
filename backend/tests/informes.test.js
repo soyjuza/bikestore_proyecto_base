@@ -10,9 +10,13 @@ let admin;
 async function pedidoPagado(idUsuario, numero, fecha, lineas) {
   const total = lineas.reduce((suma, [, cantidad, precio]) => suma + cantidad * precio, 0);
   const [result] = await pool.execute(
-    `INSERT INTO pedidos (numero, id_usuario, fecha, estado, direccion, ciudad, telefono, ultimos4, total)
-     VALUES (?, ?, ?, 'Pagado', 'Calle 30 # 28-14', 'Palmira', '3104567890', '1234', ?)`,
+    `INSERT INTO pedidos (numero, id_usuario, fecha, estado, direccion, ciudad, telefono, total)
+     VALUES (?, ?, ?, 'Pagado', 'Calle 30 # 28-14', 'Palmira', '3104567890', ?)`,
     [numero, idUsuario, fecha, total],
+  );
+  await pool.execute(
+    "INSERT INTO pagos (id_pedido, fecha, monto, ultimos4, estado) VALUES (?, ?, ?, '1234', 'Aprobado')",
+    [result.insertId, fecha, total],
   );
   for (const [idProducto, cantidad, precio] of lineas) {
     await pool.execute(

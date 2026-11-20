@@ -7,6 +7,7 @@ CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 USE bikestore;
 
+DROP TABLE IF EXISTS pagos;
 DROP TABLE IF EXISTS pedido_detalle;
 DROP TABLE IF EXISTS carrito_items;                       -- ya no existe; se deja por si quedó de una versión anterior
 DROP TABLE IF EXISTS pedidos;
@@ -73,12 +74,11 @@ CREATE TABLE pedidos (
     direccion VARCHAR(200) NULL,
     ciudad VARCHAR(100) NULL,
     telefono VARCHAR(30) NULL,
-    ultimos4 CHAR(4) NULL,                                   -- nunca se guarda el número completo
     total DECIMAL(12,0) NULL,
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
     -- si ya se pagó, los datos de la compra son obligatorios
     CHECK (estado = 'Carrito' OR (numero IS NOT NULL AND direccion IS NOT NULL AND ciudad IS NOT NULL
-           AND telefono IS NOT NULL AND ultimos4 IS NOT NULL AND total IS NOT NULL))
+           AND telefono IS NOT NULL AND total IS NOT NULL))
 );
 
 -- Productos de cada pedido (o del carrito, si el pedido está en estado 'Carrito').
@@ -93,6 +93,21 @@ CREATE TABLE pedido_detalle (
     FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
     FOREIGN KEY (id_producto) REFERENCES productos(id_producto),
     CHECK (cantidad > 0)
+);
+
+-- Pagos de cada pedido. Un pedido puede tener varios pagos (1:N): si la tarjeta
+-- se rechaza y el cliente vuelve a intentar, quedan los dos intentos guardados.
+-- El pedido pasa a 'Pagado' cuando tiene un pago 'Aprobado'.
+-- No lleva id_usuario: el cliente se saca del pedido (así no se forma un circuito).
+CREATE TABLE pagos (
+    id_pago INT AUTO_INCREMENT PRIMARY KEY,
+    id_pedido INT NOT NULL,
+    fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    monto DECIMAL(12,0) NOT NULL,
+    ultimos4 CHAR(4) NOT NULL,                               -- nunca se guarda el número completo
+    estado ENUM('Aprobado','Rechazado') NOT NULL,
+    FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
+    CHECK (monto >= 0)
 );
 
 INSERT INTO categorias (id_categoria, nombre, descripcion) VALUES

@@ -3,16 +3,19 @@ const AppError = require("../utils/AppError");
 const { texto } = require("../utils/validar");
 
 /* RF-09..12: pedido con número único y pago simulado.
+   Los pagos van en su propia tabla (un pedido puede tener varios intentos);
+   ultimos4 sale del pago aprobado.
    Formato que espera el frontend:
    { numero, fecha, estado, cliente, email, direccion, ciudad, telefono, ultimos4, total,
      items: [{ id_producto, nombre, categoria, precio, cantidad }] } */
 
 const SELECT_PEDIDOS = `
   SELECT p.id_pedido, p.numero, p.fecha, p.estado, u.nombre AS cliente, u.email,
-         p.direccion, p.ciudad, p.telefono, p.ultimos4, p.total,
+         p.direccion, p.ciudad, p.telefono, pg.ultimos4, p.total,
          d.id_producto, pr.nombre, pr.categoria, d.precio, d.cantidad
     FROM pedidos p
     JOIN usuarios u ON u.id_usuario = p.id_usuario
+    LEFT JOIN pagos pg ON pg.id_pedido = p.id_pedido AND pg.estado = 'Aprobado'
     JOIN pedido_detalle d ON d.id_pedido = p.id_pedido
     JOIN productos pr ON pr.id_producto = d.id_producto`;
 
@@ -76,6 +79,9 @@ async function createOrder(idUsuario, data) {
   const { direccion, ciudad, telefono, cuenta } = validarEnvio(data);
   const conn = await pool.getConnection();
   let numero;
+  let idPedido;
+  let total = 0;
+  let rechazado = false;
 
   try {
     await conn.beginTransaction();
@@ -87,7 +93,7 @@ async function createOrder(idUsuario, data) {
       "SELECT id_pedido FROM pedidos WHERE id_usuario = ? AND estado = 'Carrito'",
       [idUsuario],
     );
-    const idPedido = carritos[0]?.id_pedido;
+    idPedido = carritos[0]?.id_pedido;
 
     // Los productos quedan bloqueados hasta el COMMIT para que dos clientes
     // no compren al tiempo la última unidad.
@@ -115,8 +121,14 @@ async function createOrder(idUsuario, data) {
       }
     }
 
+    // El precio se toma de la tabla productos en este momento, nunca de lo que envía el navegador
+    for (const l of activas) {
+      total += Number(l.precio) * l.cantidad;
+    }
+
     // Pago simulado: una cuenta terminada en 0000 es rechazada por la pasarela
     if (cuenta.endsWith("0000")) {
+      rechazado = true;
       throw new AppError("La pasarela rechazó el pago. Revise los datos de la cuenta o use otra.", 402);
     }
 
@@ -128,8 +140,6 @@ async function createOrder(idUsuario, data) {
       [idPedido],
     );
 
-    // El precio se toma de la tabla productos en este momento, nunca de lo que envía el navegador
-    let total = 0;
     for (const l of activas) {
       await conn.execute(
         "UPDATE pedido_detalle SET precio = ? WHERE id_pedido = ? AND id_producto = ?",
@@ -139,24 +149,35 @@ async function createOrder(idUsuario, data) {
         "UPDATE productos SET stock = stock - ? WHERE id_producto = ?",
         [l.cantidad, l.id_producto],
       );
-      total += Number(l.precio) * l.cantidad;
     }
 
     // RF-10: el número sale del id del pedido, por eso no se repite. Ej.: BS-2026-00031
     numero = `BS-${new Date().getFullYear()}-${String(idPedido).padStart(5, "0")}`;
 
-    // del número de cuenta solo se guardan los últimos 4 dígitos
     await conn.execute(
       `UPDATE pedidos
           SET estado = 'Pagado', fecha = NOW(), numero = ?, direccion = ?, ciudad = ?,
-              telefono = ?, ultimos4 = ?, total = ?
+              telefono = ?, total = ?
         WHERE id_pedido = ?`,
-      [numero, direccion, ciudad, telefono, cuenta.slice(-4), total, idPedido],
+      [numero, direccion, ciudad, telefono, total, idPedido],
+    );
+
+    // del número de cuenta solo se guardan los últimos 4 dígitos
+    await conn.execute(
+      "INSERT INTO pagos (id_pedido, monto, ultimos4, estado) VALUES (?, ?, ?, 'Aprobado')",
+      [idPedido, total, cuenta.slice(-4)],
     );
 
     await conn.commit();
   } catch (error) {
     await conn.rollback();
+    // el intento rechazado sí queda guardado; el pedido sigue en 'Carrito' y se puede volver a pagar
+    if (rechazado) {
+      await conn.execute(
+        "INSERT INTO pagos (id_pedido, monto, ultimos4, estado) VALUES (?, ?, ?, 'Rechazado')",
+        [idPedido, total, cuenta.slice(-4)],
+      );
+    }
     throw error;
   } finally {
     conn.release();

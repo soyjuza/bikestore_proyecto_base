@@ -103,7 +103,7 @@ describe("Pedido y pago simulado", () => {
     assert.equal((await pagar(ana, { ...ENVIO, telefono: "123" })).status, 400);
   });
 
-  test("pago rechazado: no se crea el pedido ni se descuentan existencias", async () => {
+  test("pago rechazado: no se crea el pedido ni se descuentan existencias, pero queda el intento", async () => {
     const antes = await stockDe(10);
     const res = await pagar(ana, { ...ENVIO, numeroCuenta: "4111111111110000" });
 
@@ -111,6 +111,9 @@ describe("Pedido y pago simulado", () => {
     assert.equal(res.body.message, "La pasarela rechazó el pago. Revise los datos de la cuenta o use otra.");
     assert.equal(await stockDe(10), antes);
     assert.equal((await request(app).get("/api/cart").set(bearer(ana.token))).body.data.length, 2);
+
+    const [pagos] = await pool.execute("SELECT estado, monto, ultimos4 FROM pagos");
+    assert.deepEqual(pagos.map((p) => [p.estado, Number(p.monto), p.ultimos4]), [["Rechazado", 2 * 100000 + 69000, "0000"]]);
   });
 
   test("RF-10, RF-11, RF-12: pago exitoso con número único y confirmación", async () => {
@@ -134,9 +137,20 @@ describe("Pedido y pago simulado", () => {
   });
 
   test("del número de cuenta solo se guardan los últimos 4 dígitos", async () => {
-    const [[fila]] = await pool.execute("SELECT * FROM pedidos WHERE numero = ?", [numero]);
+    const [[fila]] = await pool.execute(
+      "SELECT pg.* FROM pagos pg JOIN pedidos p ON p.id_pedido = pg.id_pedido WHERE p.numero = ? AND pg.estado = 'Aprobado'",
+      [numero],
+    );
     assert.equal(fila.ultimos4, "1234");
     assert.ok(!JSON.stringify(fila).includes("4111"));
+  });
+
+  test("el pedido guarda los dos intentos: el rechazado y el aprobado (1:N)", async () => {
+    const [pagos] = await pool.execute(
+      "SELECT pg.estado FROM pagos pg JOIN pedidos p ON p.id_pedido = pg.id_pedido WHERE p.numero = ? ORDER BY pg.id_pago",
+      [numero],
+    );
+    assert.deepEqual(pagos.map((p) => p.estado), ["Rechazado", "Aprobado"]);
   });
 
   test("el pedido guarda el precio del día de la compra aunque después cambie", async () => {
